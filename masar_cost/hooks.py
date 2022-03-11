@@ -172,4 +172,18 @@ user_data_fields = [
 # auth_hooks = [
 # 	"masar_cost.auth.validate"
 # ]
-
+from masar_cost.override import _stock_ledger
+from masar_cost.override import _utils
+from masar_cost.override._stock_controller import _StockController
+from erpnext.stock import stock_ledger
+from erpnext.stock import utils
+from erpnext.controllers.stock_controller import StockController
+from erpnext.stock.stock_ledger import update_entries_after
+stock_ledger.make_sl_entries = _stock_ledger.make_sl_entries
+update_entries_after.initialize_previous_data = _stock_ledger.update_entries_after.initialize_previous_data
+update_entries_after.process_sle = _stock_ledger.update_entries_after.process_sle
+update_entries_after.get_moving_average_values = _stock_ledger.update_entries_after.get_moving_average_values
+update_entries_after.validate_negative_qty_in_future_sle = _stock_ledger.update_entries_after.validate_negative_qty_in_future_sle
+stock_ledger.update_qty_in_future_sles = _stock_ledger.update_qty_in_future_sle
+utils.get_incoming_rate = _utils.get_incoming_rate
+StockController.get_gl_entries = _StockController.get_gl_entries
