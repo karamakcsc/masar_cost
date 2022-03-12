@@ -173,17 +173,40 @@ user_data_fields = [
 # 	"masar_cost.auth.validate"
 # ]
 from masar_cost.override import _stock_ledger
+from masar_cost.override import _bin
 from masar_cost.override import _utils
 from masar_cost.override._stock_controller import _StockController
 from erpnext.stock import stock_ledger
+from erpnext.stock.doctype.bin import bin
 from erpnext.stock import utils
 from erpnext.controllers.stock_controller import StockController
 from erpnext.stock.stock_ledger import update_entries_after
 stock_ledger.make_sl_entries = _stock_ledger.make_sl_entries
-update_entries_after.initialize_previous_data = _stock_ledger.update_entries_after.initialize_previous_data
-update_entries_after.process_sle = _stock_ledger.update_entries_after.process_sle
+update_entries_after = _stock_ledger.update_entries_after
+# update_entries_after.initialize_previous_data = _stock_ledger.update_entries_after.initialize_previous_data
+# update_entries_after.process_sle = _stock_ledger.update_entries_after.process_sle
 update_entries_after.get_moving_average_values = _stock_ledger.update_entries_after.get_moving_average_values
-update_entries_after.validate_negative_qty_in_future_sle = _stock_ledger.update_entries_after.validate_negative_qty_in_future_sle
+# update_entries_after.validate_negative_qty_in_future_sle = _stock_ledger.update_entries_after.validate_negative_qty_in_future_sle
 stock_ledger.update_qty_in_future_sles = _stock_ledger.update_qty_in_future_sle
 utils.get_incoming_rate = _utils.get_incoming_rate
+bin.update_qty = _bin.update_qty
 StockController.get_gl_entries = _StockController.get_gl_entries
+
+#_stock_ledger.make_sl_entries --- Modified
+#_stock_ledger.repost_current_voucher(args, allow_negative_stock=False, via_landed_cost_voucher=False): ---Not Modified
+#_stock_ledger.get_args_for_future_sle(row): ---Not Modified
+#_stock_ledger.make_entry(args, allow_negative_stock=False, via_landed_cost_voucher=False): ---Not Modified
+# _stock_ledger.update_entries_after.initialize_previous_data --- Modified
+# _stock_ledger.update_entries_after.process_sle --- Modified
+# _stock_ledger.update_entries_after.get_moving_average_values --- Modified
+#_stock_ledger.update_entries_after.update_bin --- Modified
+#_stock_ledger.validate_negative_qty_in_future_sle --- Modified
+# _stock_ledger.get_previous_sle_of_current_voucher(args, exclude_current_voucher=False): ---Not Modified
+# _stock_ledger.get_previous_sle_of_current_voucher_for_all_warehouses(args, exclude_current_voucher=False): ---New
+#_stock_ledger.update_qty_in_future_sle --- Modified
+# _stock_ledger.get_future_sle_with_negative_qty_for_all_warehouses(args): ------New
+# _stock_ledger.get_next_stock_reco(args): ---Not Modified
+#_utils.get_incoming_rate ---Modified
+#_bin.update_qty ---Modified
+# _bin.get_bin_details(bin_name): ---Not Modified
+#_StockController.get_gl_entries ---Modified

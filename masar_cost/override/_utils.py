@@ -16,7 +16,6 @@ def get_incoming_rate(args, raise_error_if_no_rate=True):
 	from erpnext.stock.stock_ledger import get_previous_sle, get_valuation_rate
 	from erpnext.stock.utils import get_valuation_method
 	from masar_cost.override._stock_ledger import get_previous_sle_of_current_voucher_for_all_warehouses
-
 	if isinstance(args, string_types):
 		args = json.loads(args)
 
@@ -60,7 +59,7 @@ def update_bin_for_all_warehouses(args, allow_negative_stock=False, via_landed_c
 				actual_qty = actual_qty[0][0] if actual_qty else 0.0
 				bin_obj.actual_quantity_for_all_warehouses = flt(actual_qty)
 				bin_obj.insert()
-				# update_qty_for_all_warehouses(bin_obj.name,args)
+				update_qty_for_all_warehouses(bin_obj.name,args)
 			for d in frappe.get_list("Bin", fields=("name"), filters={"item_code": args.get("item_code")}):
 				bin = frappe.get_doc('Bin', d.name)
 				update_stock(bin.name, args, allow_negative_stock, via_landed_cost_voucher)
