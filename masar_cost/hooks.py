@@ -182,6 +182,8 @@ from erpnext.stock import utils
 from erpnext.controllers.stock_controller import StockController
 from erpnext.stock.stock_ledger import update_entries_after
 stock_ledger.make_sl_entries = _stock_ledger.make_sl_entries
+stock_ledger.get_items_to_be_repost = _stock_ledger.get_items_to_be_repost
+stock_ledger.repost_future_sle = _stock_ledger.repost_future_sle
 update_entries_after = _stock_ledger.update_entries_after
 # update_entries_after.initialize_previous_data = _stock_ledger.update_entries_after.initialize_previous_data
 # update_entries_after.process_sle = _stock_ledger.update_entries_after.process_sle

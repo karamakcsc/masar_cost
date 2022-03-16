@@ -107,7 +107,88 @@ def make_entry(args, allow_negative_stock=False, via_landed_cost_voucher=False):
     sle.submit()
     return sle
 
+def repost_future_sle(args=None, doc=None, voucher_type=None, voucher_no=None, allow_negative_stock=None, via_landed_cost_voucher=False):
+    if not args and voucher_type and voucher_no:
+        args = get_items_to_be_repost(voucher_type, voucher_no, doc)
 
+    distinct_item_warehouses = get_distinct_item_warehouse(args, doc)
+
+    i = get_current_index(doc) or 0
+
+    while i < len(args):
+        print(args[i].get('item_code'))
+        obj = update_entries_after({
+            "item_code": args[i].get('item_code'),
+            "warehouse": args[i].get('warehouse'),
+            "posting_date": args[i].get('posting_date'),
+            "posting_time": args[i].get('posting_time'),
+            "creation": args[i].get("creation"),
+            "distinct_item_warehouses": distinct_item_warehouses
+        }, allow_negative_stock=allow_negative_stock, via_landed_cost_voucher=via_landed_cost_voucher)
+
+        distinct_item_warehouses[(args[i].get('item_code'), args[i].get('warehouse'))].reposting_status = True
+
+        if obj.new_items_found:
+            for item_wh, data in iteritems(distinct_item_warehouses):
+                if ('args_idx' not in data and not data.reposting_status) or (data.sle_changed and data.reposting_status):
+                    data.args_idx = len(args)
+                    args.append(data.sle)
+                elif data.sle_changed and not data.reposting_status:
+                    args[data.args_idx] = data.sle
+
+                data.sle_changed = False
+        i += 1
+
+        if doc and i % 2 == 0:
+            update_args_in_repost_item_valuation(doc, i, args, distinct_item_warehouses)
+
+    if doc and args:
+        update_args_in_repost_item_valuation(doc, i, args, distinct_item_warehouses)
+
+def update_args_in_repost_item_valuation(doc, index, args, distinct_item_warehouses):
+    frappe.db.set_value(doc.doctype, doc.name, {
+        'items_to_be_repost': json.dumps(args, default=str),
+        'distinct_item_and_warehouse': json.dumps({str(k): v for k,v in distinct_item_warehouses.items()}, default=str),
+        'current_index': index
+    })
+
+    frappe.db.commit()
+
+    frappe.publish_realtime('item_reposting_progress', {
+        'name': doc.name,
+        'items_to_be_repost': json.dumps(args, default=str),
+        'current_index': index
+    })
+
+def get_items_to_be_repost(voucher_type, voucher_no, doc=None):
+    # if doc and doc.items_to_be_repost:
+    #     return json.loads(doc.items_to_be_repost) or []
+
+    return frappe.db.get_all("Stock Ledger Entry",
+        # filters={"voucher_type": voucher_type, "voucher_no": voucher_no},
+        fields=["item_code", "warehouse", "posting_date", "posting_time", "creation"],
+        order_by="creation asc",
+        group_by="item_code, warehouse"
+    )
+
+def get_distinct_item_warehouse(args=None, doc=None):
+    distinct_item_warehouses = {}
+    if doc and doc.distinct_item_and_warehouse:
+        distinct_item_warehouses = json.loads(doc.distinct_item_and_warehouse)
+        distinct_item_warehouses = {frappe.safe_eval(k): frappe._dict(v) for k, v in distinct_item_warehouses.items()}
+    else:
+        for i, d in enumerate(args):
+            distinct_item_warehouses.setdefault((d.item_code, d.warehouse), frappe._dict({
+                "reposting_status": False,
+                "sle": d,
+                "args_idx": i
+            }))
+
+    return distinct_item_warehouses
+
+def get_current_index(doc=None):
+    if doc and doc.current_index:
+        return doc.current_index
 #--------------------------------------------------------------------
 #Class
 #--------------------------------------------------------------------
@@ -206,6 +287,7 @@ class update_entries_after(object):
             entries_to_fix = self.get_future_entries_to_fix()
 
             i = 0
+
             while i < len(entries_to_fix):
                 sle = entries_to_fix[i]
                 i += 1
@@ -728,6 +810,15 @@ class update_entries_after(object):
                 "actual_quantity_for_all_warehouses": data.qty_after_transaction_for_all_warehouses,
                 "stock_value": data.stock_value
             })
+
+        for d in frappe.get_list("Bin", fields=("name"), filters={"item_code": self.item_code}):
+            bin = frappe.get_doc('Bin', d.name)
+            frappe.db.set_value('Bin', d.name, {
+                "valuation_rate": data.valuation_rate,
+                "actual_quantity_for_all_warehouses": data.qty_after_transaction_for_all_warehouses,
+                "stock_value": bin.actual_qty * data.valuation_rate,
+            })
+
 #--------------------------------------------------------------------
 #End Class
 #--------------------------------------------------------------------
@@ -832,8 +923,7 @@ def update_qty_in_future_sle(args, allow_negative_stock=False):
 
     frappe.db.sql("""
         update `tabStock Ledger Entry`
-        set qty_after_transaction = qty_after_transaction + {qty_shift},
-            qty_after_transaction_for_all_warehouses = qty_after_transaction_for_all_warehouses
+        set qty_after_transaction = qty_after_transaction + {qty_shift}
         where
             item_code = %(item_code)s
             and warehouse = %(warehouse)s
@@ -847,6 +937,23 @@ def update_qty_in_future_sle(args, allow_negative_stock=False):
             )
         {datetime_limit_condition}
         """.format(qty_shift=qty_shift, datetime_limit_condition=datetime_limit_condition), args)
+
+    frappe.db.sql("""
+        update `tabStock Ledger Entry`
+            qty_after_transaction_for_all_warehouses = qty_after_transaction_for_all_warehouses+ {qty_shift}
+        where
+            item_code = %(item_code)s
+            and voucher_no != %(voucher_no)s
+            and is_cancelled = 0
+            and (timestamp(posting_date, posting_time) > timestamp(%(posting_date)s, %(posting_time)s)
+                or (
+                    timestamp(posting_date, posting_time) = timestamp(%(posting_date)s, %(posting_time)s)
+                    and creation > %(creation)s
+                )
+            )
+        {datetime_limit_condition}
+        """.format(qty_shift=qty_shift, datetime_limit_condition=datetime_limit_condition), args)
+
 
     validate_negative_qty_in_future_sle(args, allow_negative_stock)
 
@@ -888,3 +995,47 @@ def get_next_stock_reco(args):
             )
         limit 1
     """, args, as_dict=1)
+
+def get_stock_ledger_entries(previous_sle, operator=None,
+    order="desc", limit=None, for_update=False, debug=False, check_serial_no=True):
+    """get stock ledger entries filtered by specific posting datetime conditions"""
+    conditions = " and timestamp(posting_date, posting_time) {0} timestamp(%(posting_date)s, %(posting_time)s)".format(operator)
+    if previous_sle.get("warehouse"):
+        conditions += " and warehouse = %(warehouse)s"
+    elif previous_sle.get("warehouse_condition"):
+        conditions += " and " + previous_sle.get("warehouse_condition")
+
+    if check_serial_no and previous_sle.get("serial_no"):
+        # conditions += " and serial_no like {}".format(frappe.db.escape('%{0}%'.format(previous_sle.get("serial_no"))))
+        serial_no = previous_sle.get("serial_no")
+        conditions += (""" and
+            (
+                serial_no = {0}
+                or serial_no like {1}
+                or serial_no like {2}
+                or serial_no like {3}
+            )
+        """).format(frappe.db.escape(serial_no), frappe.db.escape('{}\n%'.format(serial_no)),
+            frappe.db.escape('%\n{}'.format(serial_no)), frappe.db.escape('%\n{}\n%'.format(serial_no)))
+
+    if not previous_sle.get("posting_date"):
+        previous_sle["posting_date"] = "1900-01-01"
+    if not previous_sle.get("posting_time"):
+        previous_sle["posting_time"] = "00:00"
+
+    if operator in (">", "<=") and previous_sle.get("name"):
+        conditions += " and name!=%(name)s"
+
+    return frappe.db.sql("""
+        select *, timestamp(posting_date, posting_time) as "timestamp"
+        from `tabStock Ledger Entry`
+        where item_code = %%(item_code)s
+        and is_cancelled = 0
+        %(conditions)s
+        order by timestamp(posting_date, posting_time) %(order)s, creation %(order)s
+        %(limit)s %(for_update)s""" % {
+            "conditions": conditions,
+            "limit": limit or "",
+            "for_update": for_update and "for update" or "",
+            "order": order
+        }, previous_sle, as_dict=1, debug=debug)
