@@ -179,21 +179,21 @@ from masar_cost.override import _utils_stock
 from masar_cost.override import _utils_accounts
 from masar_cost.override import _stock_controller
 from masar_cost.override._stock_controller import StockController
-from erpnext.stock import stock_ledger
-from erpnext.stock.doctype.bin import bin
-from erpnext.stock import utils as utils_stock
-from erpnext.accounts import utils as utils_accounts
-from erpnext.controllers import stock_controller
+from erpnext.stock import stock_ledger as _base_stock_ledger
+from erpnext.stock.doctype.bin import bin as _base_bin
+from erpnext.stock import utils as _base_utils_stock
+from erpnext.accounts import utils as _base_utils_accounts
+from erpnext.controllers import stock_controller as _base_stock_controller
 from erpnext.controllers.stock_controller import StockController
 from erpnext.stock.stock_ledger import update_entries_after
-stock_ledger.make_sl_entries = _stock_ledger.make_sl_entries
-stock_ledger.repost_future_sle = _stock_ledger.repost_future_sle
-update_entries_after = _stock_ledger.update_entries_after
-utils_stock.get_incoming_rate = _utils_stock.get_incoming_rate
-utils_accounts.get_future_stock_vouchers = _utils_accounts.get_future_stock_vouchers
-bin.update_qty = _bin.update_qty
-stock_controller.StockController.get_gl_entries = _stock_controller.StockController.get_gl_entries
-stock_controller.StockController.get_stock_ledger_details = _stock_controller.StockController.get_stock_ledger_details
+_base_stock_ledger.make_sl_entries = _stock_ledger.make_sl_entries
+_base_stock_ledger.repost_future_sle = _stock_ledger.repost_future_sle
+_base_stock_ledger.update_entries_after = _stock_ledger.update_entries_after
+_base_utils_stock.get_incoming_rate = _utils_stock.get_incoming_rate
+_base_utils_accounts.get_future_stock_vouchers = _utils_accounts.get_future_stock_vouchers
+_base_bin.update_qty = _bin.update_qty
+_base_stock_controller.StockController.get_gl_entries = _stock_controller.StockController.get_gl_entries
+_base_stock_controller.StockController.get_stock_ledger_details = _stock_controller.StockController.get_stock_ledger_details
 
 #_stock_ledger.make_sl_entries --- Modified
 #_stock_ledger.repost_current_voucher(args, allow_negative_stock=False, via_landed_cost_voucher=False): ---Not Modified
