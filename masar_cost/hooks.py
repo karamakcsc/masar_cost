@@ -188,12 +188,14 @@ fixtures = [
 from masar_cost.override import _stock_ledger
 from masar_cost.override import _bin
 from masar_cost.override import _utils_stock
+#from masar_cost.override import _utils_accounts
 from masar_cost.override import _utils_accounts
 from masar_cost.override import _stock_controller
 from masar_cost.override._stock_controller import StockController
 from erpnext.stock import stock_ledger
 from erpnext.stock.doctype.bin import bin
 from erpnext.stock import utils
+#from erpnext.accounts import utils
 from erpnext.stock import utils as utils_stock
 from erpnext.accounts import utils as utils_accounts
 from erpnext.controllers import stock_controller
@@ -203,12 +205,12 @@ stock_ledger.make_sl_entries = _stock_ledger.make_sl_entries
 stock_ledger.repost_future_sle = _stock_ledger.repost_future_sle
 update_entries_after = _stock_ledger.update_entries_after
 utils.get_incoming_rate = _utils_stock.get_incoming_rate
+#utils.get_future_stock_vouchers = _utils_accounts.get_future_stock_vouchers
 utils_stock.get_incoming_rate = _utils_stock.get_incoming_rate
 utils_accounts.get_future_stock_vouchers = _utils_accounts.get_future_stock_vouchers
 bin.update_qty = _bin.update_qty
 stock_controller.StockController.get_gl_entries = _stock_controller.StockController.get_gl_entries
 stock_controller.StockController.get_stock_ledger_details = _stock_controller.StockController.get_stock_ledger_details
-
 #_stock_ledger.make_sl_entries --- Modified
 #_stock_ledger.repost_current_voucher(args, allow_negative_stock=False, via_landed_cost_voucher=False): ---Not Modified
 #_stock_ledger.get_args_for_future_sle(row): ---Not Modified
