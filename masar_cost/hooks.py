@@ -174,24 +174,22 @@ user_data_fields = [
 # ]
 from masar_cost.override import _stock_ledger
 from masar_cost.override import _bin
-from masar_cost.override import _utils
+from masar_cost.override import _utils_stock
+from masar_cost.override import _utils_accounts
 from masar_cost.override import _stock_controller
 from masar_cost.override._stock_controller import StockController
 from erpnext.stock import stock_ledger
 from erpnext.stock.doctype.bin import bin
 from erpnext.stock import utils
+from erpnext.accounts import utils
 from erpnext.controllers import stock_controller
 from erpnext.controllers.stock_controller import StockController
 from erpnext.stock.stock_ledger import update_entries_after
 stock_ledger.make_sl_entries = _stock_ledger.make_sl_entries
 stock_ledger.repost_future_sle = _stock_ledger.repost_future_sle
 update_entries_after = _stock_ledger.update_entries_after
-# update_entries_after.initialize_previous_data = _stock_ledger.update_entries_after.initialize_previous_data
-# update_entries_after.process_sle = _stock_ledger.update_entries_after.process_sle
-#update_entries_after.get_moving_average_values = _stock_ledger.update_entries_after.get_moving_average_values
-# update_entries_after.validate_negative_qty_in_future_sle = _stock_ledger.update_entries_after.validate_negative_qty_in_future_sle
-#stock_ledger.update_qty_in_future_sle = _stock_ledger.update_qty_in_future_sle
-utils.get_incoming_rate = _utils.get_incoming_rate
+utils.get_incoming_rate = _utils_stock.get_incoming_rate
+utils.get_future_stock_vouchers = _utils_accounts.get_future_stock_vouchers
 bin.update_qty = _bin.update_qty
 stock_controller.StockController.get_gl_entries = _stock_controller.StockController.get_gl_entries
 stock_controller.StockController.get_stock_ledger_details = _stock_controller.StockController.get_stock_ledger_details
