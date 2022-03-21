@@ -199,6 +199,8 @@ utils_accounts.get_future_stock_vouchers = _utils_accounts.get_future_stock_vouc
 bin.update_qty = _bin.update_qty
 stock_controller.StockController.get_gl_entries = _stock_controller.StockController.get_gl_entries
 stock_controller.StockController.get_stock_ledger_details = _stock_controller.StockController.get_stock_ledger_details
+
+
 #_stock_ledger.make_sl_entries --- Modified
 #_stock_ledger.repost_current_voucher(args, allow_negative_stock=False, via_landed_cost_voucher=False): ---Not Modified
 #_stock_ledger.get_args_for_future_sle(row): ---Not Modified
