@@ -166,6 +166,12 @@ user_data_fields = [
 	}
 ]
 
+# Authentication and authorization
+# --------------------------------
+
+# auth_hooks = [
+# 	"masar_cost.auth.validate"
+# ]
 fixtures = [
     {"dt": "Custom Field", "filters": [
         [
@@ -179,13 +185,6 @@ fixtures = [
     ]}
 ]
 
-
-# Authentication and authorization
-# --------------------------------
-
-# auth_hooks = [
-# 	"masar_cost.auth.validate"
-# ]
 from masar_cost.override import _stock_ledger
 from masar_cost.override import _bin
 from masar_cost.override import _utils_stock
