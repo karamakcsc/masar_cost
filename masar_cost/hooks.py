@@ -172,6 +172,18 @@ user_data_fields = [
 # auth_hooks = [
 # 	"masar_cost.auth.validate"
 # ]
+fixtures = [
+    {"dt": "Custom Field", "filters": [
+        [
+            "name", "in", [
+		"Bin-actual_quantity_for_all_warehouses",
+		"Stock Ledger Entry-qty_after_transaction_for_all_warehouses",
+		"Stock Ledger Entry-stock_value_for_all_warehouses",
+		"Stock Ledger Entry-stock_value_difference_for_all_warehouses"
+            ]
+        ]
+    ]}
+]
 
 from masar_cost.override import _stock_ledger
 from masar_cost.override import _bin
