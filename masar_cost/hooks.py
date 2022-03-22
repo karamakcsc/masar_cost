@@ -188,7 +188,7 @@ from erpnext.controllers.stock_controller import StockController
 from erpnext.stock.stock_ledger import update_entries_after
 _base_stock_ledger.make_sl_entries = _stock_ledger.make_sl_entries
 _base_stock_ledger.repost_future_sle = _stock_ledger.repost_future_sle
-_base_stock_ledger.update_entries_after = _stock_ledger.update_entries_after
+update_entries_after = _stock_ledger.update_entries_after
 _base_utils_stock.get_incoming_rate = _utils_stock.get_incoming_rate
 _base_utils_accounts.get_future_stock_vouchers = _utils_accounts.get_future_stock_vouchers
 _base_bin.update_qty = _bin.update_qty
