@@ -425,7 +425,7 @@ class update_entries_after(object):
                 # assert
                 self.wh_data.valuation_rate = sle.valuation_rate
                 self.wh_data.qty_after_transaction = sle.qty_after_transaction
-                self.wh_data.qty_after_transaction_for_all_warehouses = sle.qty_after_transaction_for_all_warehouses
+                self.wh_data.qty_after_transaction_for_all_warehouses = get_qty_for_all_warehouses(self.item_code)
                 self.wh_data.stock_queue = [[self.wh_data.qty_after_transaction, self.wh_data.valuation_rate]]
                 self.wh_data.stock_value = flt(self.wh_data.qty_after_transaction) * flt(self.wh_data.valuation_rate)
                 self.wh_data.stock_value_for_all_warehouses = flt(self.wh_data.qty_after_transaction_for_all_warehouses) * flt(self.wh_data.valuation_rate)
@@ -1053,7 +1053,7 @@ class update_entries_after_for_all_warehouses(object):
             if sle.voucher_type=="Stock Reconciliation" and not sle.batch_no:
                 # assert
                 self.item_date.valuation_rate = sle.valuation_rate
-                self.item_date.qty_after_transaction = sle.qty_after_transaction_for_all_warehouses
+                self.item_date.qty_after_transaction = get_qty_for_all_warehouses(self.item_code)
                 self.item_date.stock_queue = [[self.item_date.qty_after_transaction, self.item_date.valuation_rate]]
                 self.item_date.stock_value = flt(self.item_date.qty_after_transaction) * flt(self.item_date.valuation_rate)
             else:
@@ -1943,3 +1943,18 @@ def _round_off_if_near_zero(number: float, precision: int = 6) -> float:
 		return 0.0
 
 	return flt(number)
+
+def get_qty_for_all_warehouses(item_code):
+    qty = frappe.db.sql("""
+                            Select SUM(actual_qty) as qty
+                            From tabBin tb
+                            where item_code = '%s'
+                            LIMIT 1""" %(item_code), as_dict=True
+                            )
+
+    if qty:
+        bin_qty = qty[0].qty
+    else:
+        bin_qty = 0
+
+    return bin_qty
