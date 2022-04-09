@@ -424,8 +424,8 @@ class update_entries_after(object):
             if sle.voucher_type=="Stock Reconciliation" and not sle.batch_no:
                 # assert
                 self.wh_data.valuation_rate = sle.valuation_rate
+                self.wh_data.qty_after_transaction_for_all_warehouses = self.wh_data.qty_after_transaction_for_all_warehouses - self.wh_data.qty_after_transaction +sle.qty_after_transaction
                 self.wh_data.qty_after_transaction = sle.qty_after_transaction
-                self.wh_data.qty_after_transaction_for_all_warehouses = get_qty_for_all_warehouses(self.item_code)
                 self.wh_data.stock_queue = [[self.wh_data.qty_after_transaction, self.wh_data.valuation_rate]]
                 self.wh_data.stock_value = flt(self.wh_data.qty_after_transaction) * flt(self.wh_data.valuation_rate)
                 self.wh_data.stock_value_for_all_warehouses = flt(self.wh_data.qty_after_transaction_for_all_warehouses) * flt(self.wh_data.valuation_rate)
@@ -916,9 +916,9 @@ class update_entries_after_for_all_warehouses(object):
         previous_sle = get_previous_sle_of_current_voucher_for_all_warehouses(args)
         item_dict.previous_sle = previous_sle
 
-        for key in ("qty_after_transaction", "valuation_rate", "stock_value"):
+        for key in ("qty_after_transaction","qty_after_transaction_for_all_warehouses", "valuation_rate", "stock_value"):
             setattr(item_dict, key, flt(previous_sle.get(key)))
-
+            # setattr(item_dict, "qty_after_transaction_for_all_warehouses", flt(previous_sle.get("qty_after_transaction_for_all_warehouses")))
 
         item_dict.update({
             "prev_stock_value": previous_sle.stock_value or 0.0,
@@ -1030,12 +1030,12 @@ class update_entries_after_for_all_warehouses(object):
         #Updated By KCSC on 12/3/2022
         from erpnext.stock.doctype.serial_no.serial_no import get_serial_nos
         # previous sle data for this warehouse
-        self.item_date = self.data_item[sle.item_code]
+        self.item_data = self.data_item[sle.item_code]
         if (sle.serial_no and not self.via_landed_cost_voucher) or not cint(self.allow_negative_stock):
             # validate negative stock for serialized items, fifo valuation
             # or when negative stock is not allowed for moving average
             if not self.validate_negative_stock(sle):
-                self.item_date.qty_after_transaction += flt(sle.actual_qty)
+                self.item_data.qty_after_transaction_for_all_warehouses += flt(sle.actual_qty)
                 return
 
         # Get dynamic incoming/outgoing rate
@@ -1044,39 +1044,48 @@ class update_entries_after_for_all_warehouses(object):
 
         if sle.serial_no:
             self.get_serialized_values(sle)
-            self.item_date.qty_after_transaction += flt(sle.actual_qty)
+            self.item_data.qty_after_transaction_for_all_warehouses += flt(sle.actual_qty)
             if sle.voucher_type == "Stock Reconciliation":
-                self.item_date.qty_after_transaction = sle.qty_after_transaction_for_all_warehouses
+                self.item_data.qty_after_transaction_for_all_warehouses = sle.qty_after_transaction_for_all_warehouses
 
-            self.item_date.stock_value = flt(self.item_date.qty_after_transaction) * flt(self.item_date.valuation_rate)
+            self.item_data.stock_value = flt(self.item_data.qty_after_transaction_for_all_warehouses) * flt(self.item_data.valuation_rate)
         else:
             if sle.voucher_type=="Stock Reconciliation" and not sle.batch_no:
                 # assert
-                self.item_date.valuation_rate = sle.valuation_rate
-                self.item_date.qty_after_transaction = get_qty_for_all_warehouses(self.item_code)
-                self.item_date.stock_queue = [[self.item_date.qty_after_transaction, self.item_date.valuation_rate]]
-                self.item_date.stock_value = flt(self.item_date.qty_after_transaction) * flt(self.item_date.valuation_rate)
+                last_sle = frappe._dict()
+                last_sle.update({
+                    "item_code": self.args.item_code,
+                    "warehouse": self.args.warehouse,
+                    "posting_date": sle.posting_date,
+                    "posting_time": sle.posting_time,
+                })
+                last_balance = get_previous_sle_for_warehouse(last_sle,
+        			exclude_current_voucher=True).get("qty_after_transaction")
+                self.item_data.valuation_rate = sle.valuation_rate
+                self.item_data.qty_after_transaction_for_all_warehouses = self.item_data.qty_after_transaction_for_all_warehouses - last_balance +sle.qty_after_transaction
+                self.item_data.stock_queue = [[self.item_data.qty_after_transaction_for_all_warehouses, self.item_data.valuation_rate]]
+                self.item_data.stock_value = flt(self.item_data.qty_after_transaction_for_all_warehouses) * flt(self.item_data.valuation_rate)
             else:
                 if self.valuation_method == "Moving Average":
                     self.get_moving_average_values(sle)
-                    self.item_date.qty_after_transaction += flt(sle.actual_qty)
-                    self.item_date.stock_value = flt(self.item_date.qty_after_transaction) * flt(self.item_date.valuation_rate)
+                    self.item_data.qty_after_transaction_for_all_warehouses += flt(sle.actual_qty)
+                    self.item_data.stock_value = flt(self.item_data.qty_after_transaction_for_all_warehouses) * flt(self.item_data.valuation_rate)
                 else:
                     self.get_fifo_values(sle)
-                    self.item_date.qty_after_transaction += flt(sle.actual_qty)
-                    self.item_date.qty_after_transaction_for_all_warehouses += flt(sle.actual_qty)
-                    self.item_date.stock_value = sum((flt(batch[0]) * flt(batch[1]) for batch in self.item_date.stock_queue))
+                    self.item_data.qty_after_transaction_for_all_warehouses += flt(sle.actual_qty)
+                    self.item_data.qty_after_transaction_for_all_warehouses_for_all_warehouses += flt(sle.actual_qty)
+                    self.item_data.stock_value = sum((flt(batch[0]) * flt(batch[1]) for batch in self.item_data.stock_queue))
 
         # rounding as per precision
-        self.item_date.stock_value = flt(self.item_date.stock_value, self.precision)
-        stock_value_difference = self.item_date.stock_value - self.item_date.prev_stock_value
-        stock_value_difference_for_all_warehouses = self.item_date.stock_value - self.item_date.prev_stock_value
-        self.item_date.prev_stock_value = self.item_date.stock_value
+        self.item_data.stock_value = flt(self.item_data.stock_value, self.precision)
+        stock_value_difference = self.item_data.stock_value - self.item_data.prev_stock_value
+        stock_value_difference_for_all_warehouses = self.item_data.stock_value - self.item_data.prev_stock_value
+        self.item_data.prev_stock_value = self.item_data.stock_value
 
         # update current sle
-        sle.qty_after_transaction_for_all_warehouses = self.item_date.qty_after_transaction
-        sle.valuation_rate = self.item_date.valuation_rate
-        sle.stock_value_for_all_warehouses = self.item_date.stock_value
+        sle.qty_after_transaction_for_all_warehouses = self.item_data.qty_after_transaction_for_all_warehouses
+        sle.valuation_rate = self.item_data.valuation_rate
+        sle.stock_value_for_all_warehouses = self.item_data.stock_value
         sle.stock_value_difference_for_all_warehouses = stock_value_difference_for_all_warehouses
         sle.doctype="Stock Ledger Entry"
         frappe.get_doc(sle).db_update()
@@ -1267,38 +1276,38 @@ class update_entries_after_for_all_warehouses(object):
     def get_moving_average_values(self, sle):
         #Updated By KCSC on 12/3/2022
         actual_qty = flt(sle.actual_qty)
-        new_stock_qty = flt(self.item_date.qty_after_transaction) + actual_qty
+        new_stock_qty = flt(self.item_data.qty_after_transaction_for_all_warehouses) + actual_qty
         if new_stock_qty >= 0:
             if actual_qty > 0:
-                if flt(self.item_date.qty_after_transaction) <= 0:
-                    self.item_date.valuation_rate = sle.incoming_rate
+                if flt(self.item_data.qty_after_transaction_for_all_warehouses) <= 0:
+                    self.item_data.valuation_rate = sle.incoming_rate
                 else:
-                    new_stock_value = (self.item_date.qty_after_transaction * self.item_date.valuation_rate) + \
+                    new_stock_value = (self.item_data.qty_after_transaction_for_all_warehouses * self.item_data.valuation_rate) + \
                         (actual_qty * sle.incoming_rate)
 
-                    self.item_date.valuation_rate = new_stock_value / new_stock_qty
+                    self.item_data.valuation_rate = new_stock_value / new_stock_qty
 
             elif sle.outgoing_rate:
                 if new_stock_qty:
-                    new_stock_value = (self.item_date.qty_after_transaction * self.item_date.valuation_rate) + \
+                    new_stock_value = (self.item_data.qty_after_transaction_for_all_warehouses * self.item_data.valuation_rate) + \
                         (actual_qty * sle.outgoing_rate)
 
-                    self.item_date.valuation_rate = new_stock_value / new_stock_qty
+                    self.item_data.valuation_rate = new_stock_value / new_stock_qty
                 else:
-                    self.item_date.valuation_rate = sle.outgoing_rate
+                    self.item_data.valuation_rate = sle.outgoing_rate
         else:
-            if flt(self.item_date.qty_after_transaction) >= 0 and sle.outgoing_rate:
-                self.item_date.valuation_rate = sle.outgoing_rate
+            if flt(self.item_data.qty_after_transaction_for_all_warehouses) >= 0 and sle.outgoing_rate:
+                self.item_data.valuation_rate = sle.outgoing_rate
 
-            if not self.item_date.valuation_rate and actual_qty > 0:
-                self.item_date.valuation_rate = sle.incoming_rate
+            if not self.item_data.valuation_rate and actual_qty > 0:
+                self.item_data.valuation_rate = sle.incoming_rate
 
             # Get valuation rate from previous SLE or Item master, if item does not have the
             # allow zero valuration rate flag set
-            if not self.item_date.valuation_rate and sle.voucher_detail_no:
+            if not self.item_data.valuation_rate and sle.voucher_detail_no:
                 allow_zero_valuation_rate = self.check_if_allow_zero_valuation_rate(sle.voucher_type, sle.voucher_detail_no)
                 if not allow_zero_valuation_rate:
-                    self.item_date.valuation_rate = self.get_fallback_rate(sle)
+                    self.item_data.valuation_rate = self.get_fallback_rate(sle)
 
     def get_fifo_values(self, sle):
         incoming_rate = flt(sle.incoming_rate)
@@ -1445,7 +1454,7 @@ class update_entries_after_for_all_warehouses(object):
                 bin = frappe.get_doc('Bin', d.name)
                 frappe.db.set_value('Bin', d.name, {
                     "valuation_rate": data.valuation_rate,
-                    "actual_quantity_for_all_warehouses": data.qty_after_transaction,
+                    "actual_quantity_for_all_warehouses": data.qty_after_transaction_for_all_warehouses,
                     "stock_value": bin.actual_qty * data.valuation_rate,
                 })
 
@@ -1507,6 +1516,29 @@ def get_previous_sle_of_current_voucher_for_all_warehouses(args, exclude_current
         for update""".format(voucher_condition=voucher_condition), args, as_dict=1)
 
     return sle[0] if sle else frappe._dict()
+
+
+def get_previous_sle_for_warehouse(last_sle, exclude_current_voucher=False):
+    """get stock ledger entries filtered by specific posting datetime conditions"""
+
+    last_sle['time_format'] = '%H:%i:%s'
+    if not last_sle.get("posting_date"):
+        last_sle["posting_date"] = "1900-01-01"
+    if not last_sle.get("posting_time"):
+        last_sle["posting_time"] = "00:00"
+
+    sle = frappe.db.sql("""
+        select *, timestamp(posting_date, posting_time) as "timestamp"
+        from `tabStock Ledger Entry`
+        where item_code = %(item_code)s
+            and warehouse = %(warehouse)s
+            and is_cancelled = 0
+            and timestamp(posting_date, time_format(posting_time, %(time_format)s)) < timestamp(%(posting_date)s, time_format(%(posting_time)s, %(time_format)s))
+        order by timestamp(posting_date, posting_time) desc, creation desc
+        limit 1
+        for update""", last_sle, as_dict=1)
+    return sle[0] if sle else frappe._dict()
+
 
 def get_stock_ledger_entries(previous_sle, operator=None,
     order="desc", limit=None, for_update=False, debug=False, check_serial_no=True):
